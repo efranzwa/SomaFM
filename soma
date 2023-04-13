@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+
+play () {
+  local title
+  title=$(<"${1}" jq -r ".channels | map(select(.id == \"${2}\")) | .[]" | \
+    jq -r ".title")
+
+  #local description
+  #description=$(<"${1}" jq -r ".channels | map(select(.id == \"${2}\")) | .[]" | \
+  #  jq -r ".description")
+
+  local dj
+  dj=$(<"${1}" jq -r ".channels | map(select(.id == \"${2}\")) | .[]" | \
+    jq -r ".dj")
+
+  local djmail
+  djmail=$(<"${1}" jq -r ".channels | map(select(.id == \"${2}\")) | .[]" | \
+    jq -r ".djmail")
+
+  local genre
+  genre=$(<"${1}" jq -r ".channels | map(select(.id == \"${2}\")) | .[]" | \
+    jq -r ".genre")
+
+  local playlist
+  playlist=$(<"${1}" jq -r ".channels | map(select(.id == \"${2}\")) | .[]" | \
+    jq -r ".playlists | map(select(.quality == \"${3}\")) | limit(1;.[]) | .url")
+
+  clear
+  tput civis
+  tput csr 9 14
+  printf "%s" "${BG_BLACK}${TX_BOLD}"
+  printf "%s\n\n" "${FG_GREEN}SomaFM Internet Radio"
+  printf "%s\n" "${FG_GREEN}Station: ${FG_BLUE}$title"
+  printf "%s\n" "${FG_GREEN}DJ:      ${FG_BLUE}$dj $djmail"
+  printf "%s\n" "${FG_GREEN}Genre:   ${FG_BLUE}$genre"
+  #printf "%s\n" "${FG_CYAN}$description"
+  printf "\n"
+  printf "%s\n" "${FG_GREEN}---------------------------------------------"
+  printf "%s\n" "  Time   |   Track (ctrl-c to change station)"
+  printf "%s\n" "---------------------------------------------"
+  printf "%s" "${FG_BLUE}"
+
+  case "${playlist}" in
+    '') printf "\n%s\n" "${FG_RED}error in channel or quality${FG_GREEN}"; return 1 
+        ;;
+    *)  mpv --no-config "${playlist}" 2> /dev/null | awk '/title/ { s = ""; for (i = 2; i <= NF; i++) s = s $i " "; cmd="(date +'%H:%M:%S')"; cmd | getline d; print d,"|",s; close(cmd) }' 
+        ;;
+  esac
+}
+
+channels () {
+  local channels
+  channels=$(<"${1}" jq -r  '.channels | sort_by(.listeners | tonumber) | reverse | .[]' | \
+    jq -r -j '.id + " | "')
+
+  case "${channels}" in
+    '') printf "\n%s\n" "${FG_RED}error retrieving channel list${FG_GREEN}"; return 1 
+        ;;
+    *)  printf "%s\n" "${FG_BLUE}${channels}${FG_GREEN}"
+        ;;
+  esac
+}
+
+about () {
+  local a
+  read -r -a a <<< "${0//\// }"
+  local bin=${a[${#a[@]}-1]}
+  printf "%s\n" "${FG_BLUE}TODO ... add info for ${bin}${FG_GREEN}"
+}
+
+version () {
+  printf "%s\n" "${FG_BLUE}version ${1}${FG_GREEN}"
+}
+
+int_handler () {
+  #echo " SIGINT trap"
+  tput el1
+  sleep 3
+  tput cnorm
+  menu
+}
+
+filecheck () {
+  if [ -e "${1}" ] && (($(date +%s) - $(date -r "${1}" +%s) < 86400 )); then
+    echo "channels file ${1} exists"
+    sleep 3 
+    :
+  else
+    echo "downloading channels file ${1}"
+    sleep 3
+    curl -o "${1}" -s -H 'Accept: application/json' "${2}"
+  fi
+}
+
+menu () {
+tput reset  # clears scroll mode from listen function
+local selection
+local channel
+local quality
+while [[ $REPLY != 0 ]]; do
+  printf "%s" "${BG_BLACK}${FG_GREEN}${TX_BOLD}"
+  clear
+  cat <<- _EOF_
+SomaFM Internet Radio
+
+     [1] Play
+     [2] Channels
+     [3] Version
+     [4] About
+     [0] Quit
+
+_EOF_
+
+  read -r -p "Enter selection [0-4] > " selection
+  tput cup 10 0
+
+  case $selection in
+    1)  printf "%s" "${FG_BLUE}"
+        read -r -e -p 'Enter channel (e.g. groovesalad, dronezone, indiepop): ' channel
+	test -z "${channel}" && channel=groovesalad  # default no entry
+	read -r -e -p 'Enter quality (e.g. low, high, highest): ' quality
+	test -z "${quality}" && quality=high  # default if no entry
+	printf "%s" "${FG_GREEN}"
+        play "${dfile}" "${channel}" "${quality}"
+	;;
+    2)  channels "${dfile}"
+        ;;
+    3)  version "${version}"
+        ;;
+    4)  about
+        ;;
+    0)  tput reset
+        exit 0
+        ;;
+    *)  printf "%s\n" "${FG_RED}Invalid Entry${FG_GREEN}"
+        ;;
+  esac
+  read -r -s -n 1 -p $'\nPress any key to continue'
+  clear
+done
+}
+
+# global color definitions
+#BG_BLUE="$(tput setab 4)"
+BG_BLACK="$(tput setab 0)"
+FG_RED="$(tput setaf 1)"
+FG_GREEN="$(tput setaf 2)"
+#FG_YELLOW="$(tput setaf 3)"
+FG_BLUE="$(tput setaf 4)"
+#FG_MAGENTA="$(tput setaf 5)"
+#FG_CYAN="$(tput setaf 6)"
+#FG_WHITE="$(tput setaf 7)"
+TX_BOLD="$(tput bold)"
+
+# main 
+trap int_handler SIGINT
+tput smcup  # probably dont need
+tput clear
+version='0.1.0'
+dfile=~/channels.json
+url='https://somafm.com/channels.json'
+filecheck "${dfile}" "${url}"
+menu

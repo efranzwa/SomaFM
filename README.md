@@ -61,4 +61,4 @@ Execute `soma` command. Display information about SomaFM with `4`.
 $ soma
 ```
 
-![](images/somafm-about.png)# SomaFM
+![](images/somafm-about.png)

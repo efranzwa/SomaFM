@@ -30,13 +30,13 @@ play () {
   tput csr 9 14
   printf "%s" "${BG_BLACK}${TX_BOLD}"
   printf "%s\n\n" "${FG_GREEN}SomaFM Internet Radio"
-  printf "%s\n" "${FG_GREEN}Station: ${FG_BLUE}$title"
+  printf "%s\n" "${FG_GREEN}Channel: ${FG_BLUE}$title"
   printf "%s\n" "${FG_GREEN}DJ:      ${FG_BLUE}$dj $djmail"
   printf "%s\n" "${FG_GREEN}Genre:   ${FG_BLUE}$genre"
   #printf "%s\n" "${FG_CYAN}$description"
   printf "\n"
   printf "%s\n" "${FG_GREEN}---------------------------------------------"
-  printf "%s\n" "  Time   |   Track (ctrl-c to change station)"
+  printf "%s\n" "  Time   |   Track (ctrl-c to change channel)"
   printf "%s\n" "---------------------------------------------"
   printf "%s" "${FG_BLUE}"
 
